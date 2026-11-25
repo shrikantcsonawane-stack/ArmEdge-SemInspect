@@ -1,0 +1,15 @@
+__pycache__/
+*.pyc
+.venv/
+data/*
+!data/README.md
+models/*
+!models/README.md
+logs/
+*.pt
+*.pth
+*.pte
+*.bin
+*.zip
+.pytest_cache/
+!models/training_log.json

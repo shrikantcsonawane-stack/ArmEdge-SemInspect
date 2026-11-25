@@ -1,0 +1,50 @@
+# ArmEdge-SemInspect configuration. All thresholds are transparent and editable.
+dataset:
+  # Real dataset (Carinthia-S, CC-BY-4.0) is extracted here by scripts/download_dataset.py
+  raw_dir: data/carinthia_s
+  manifest: data/manifest.csv            # produced by scripts/prepare_dataset.py
+  demo_manifest: data/demo/manifest.csv  # SYNTHETIC demo set (prepare_dataset.py --demo)
+  max_per_class: 150      # small balanced subset (training-time budget)
+  val_fraction: 0.2
+  seed: 42
+
+model:
+  checkpoint: models/mobilenetv3_small_best.pt
+  image_size: 224
+  unfreeze_last_blocks: 2   # backbone mostly frozen; only last N feature blocks + head train
+
+training:
+  epochs: 25
+  batch_size: 32
+  lr: 0.001
+  patience: 5              # early stopping (epochs without val-acc improvement)
+  max_minutes: 20          # soft budget; scripts/train.py hard-caps at 30 minutes
+  num_threads: 0           # 0 = torch default
+
+severity:
+  # Area (% of image covered by defect mask) thresholds. Used ONLY when a valid mask exists.
+  area_medium_pct: 1.0
+  area_high_pct: 5.0
+  # Optional per-class baseline severity (LOW/MEDIUM/HIGH). Unlisted classes use default.
+  default_class_severity: MEDIUM
+  class_severity: {}
+  # Classes that represent "no defect" (none in Carinthia-S; used by the synthetic demo set)
+  uncertain_confidence: 0.50   # below this, severity is never LOW
+  non_defect_classes: [demo_clean]
+
+quality:
+  min_confidence: 0.60       # below this the decision is escalated to at least REVIEW
+  severity_to_decision: {LOW: PASS, MEDIUM: REVIEW, HIGH: FAIL}
+
+advisor:
+  backend: executorch        # executorch | fallback
+  # Exported Llama .pte + tokenizer. Runner: executorch pip TextLLMRunner (preferred)
+  # or the official C++ llama_main binary (optional alternative).
+  runner_binary: models/llama/llama_main
+  model_pte: models/llama/llama3_2_1b_instruct.pte
+  tokenizer: models/llama/tokenizer.model
+  max_new_tokens: 160
+  timeout_s: 60
+
+database:
+  path: logs/inspections.db
